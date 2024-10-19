@@ -1,0 +1,277 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  Lowest
+  Low
+  Medium
+  High
+  Highest
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional for WebAuthn support
+  Authenticator Authenticator[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  clerkUserId String?  @unique
+
+  birthday DateTime?
+
+  height Int?
+  weight Int?
+
+  targetWeight       Int?
+  dailyCalorieIntake Int?
+
+  aiModel   String?
+  aiBaseUrl String?
+  aiKey     Json?
+
+  projects          Project[]
+  tasks             Task[]
+  teamConnections   TeamConnection[]
+  taskStatusConfigs TaskStatusConfig[]
+  workoutPlans      WorkoutPlan[]
+  dietPlans         DietPlan[]
+  financeAccounts   FinanceAccount[]
+  transactions      Transaction[]
+  goals             Goal[]
+  currencies        Currency[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+model TeamConnection {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  member   User   @relation(fields: [memberId], references: [id])
+  memberId String
+
+  team   Team   @relation(fields: [teamId], references: [id])
+  teamId String
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+  slug String @unique
+
+  teamConnections   TeamConnection[]
+  taskStatusConfigs TaskStatusConfig[]
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  slug        String @unique
+  description Json?
+
+  owner   User   @relation(fields: [ownerId], references: [id])
+  ownerId String
+
+  tasks Task[]
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  slug        String    @unique
+  description Json?
+  dueDate     DateTime?
+  priority    Priority  @default(Medium)
+  labels      String[]
+
+  taskStatus   TaskStatusConfig @relation(fields: [taskStatusId], references: [id])
+  taskStatusId String
+
+  project   Project? @relation(fields: [projectId], references: [id])
+  projectId String?
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+}
+
+model TaskStatusConfig {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name       String
+  orderIndex Int
+
+  isFinalStage Boolean @default(false)
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+  teamId String?
+  tasks  Task[]
+}
+
+model WorkoutPlan {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  name                 String
+  reps                 Int
+  description          Json?
+  estimatedCalorieBurn Int
+}
+
+model DietPlan {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  name             String
+  estimatedCalorie Int
+  description      Json?
+}
+
+model FinanceAccount {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  name         String
+  description  Json?
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  account   FinanceAccount @relation(fields: [accountId], references: [id])
+  accountId String
+  labels    String[]
+
+  amount      Float
+  description Json?
+  isReceived  Boolean @default(true)
+}
+
+model Goal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  name        String
+  slug        String @unique
+  description Json?
+}
+
+model Currency {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  name           String
+  isBase         Boolean @default(false)
+  conversionRate Float
+}
